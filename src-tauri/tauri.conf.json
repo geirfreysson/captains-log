@@ -10,13 +10,22 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
         "title": "Todo List",
-        "width": 520,
-        "height": 640,
+        "width": 420,
+        "height": 560,
         "minWidth": 420,
-        "minHeight": 480
+        "minHeight": 560,
+        "maxWidth": 420,
+        "maxHeight": 560,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": false
       }
     ],
     "security": {

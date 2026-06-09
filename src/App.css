@@ -1,6 +1,6 @@
 :root {
   color: #1c1c1e;
-  background: #eceff1;
+  background: transparent;
   font-family:
     -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial,
     sans-serif;
@@ -13,11 +13,16 @@
   -webkit-text-size-adjust: 100%;
 }
 
+html {
+  background: transparent;
+}
+
 * {
   box-sizing: border-box;
 }
 
 body {
+  background: transparent;
   margin: 0;
   min-width: 360px;
   min-height: 100vh;
@@ -46,18 +51,64 @@ input:disabled {
 
 .app-shell {
   align-items: stretch;
+  background: transparent;
   display: flex;
   height: 100vh;
   overflow: hidden;
-  padding: 18px 28px 28px;
+  padding: 16px 0 0;
+}
+
+.font-small {
+  --todo-font-size: 14px;
+  --todo-row-height: 52px;
+  --todo-control-height: 38px;
+  font-size: var(--todo-font-size);
+}
+
+.font-medium {
+  --todo-font-size: 16px;
+  --todo-row-height: 58px;
+  --todo-control-height: 42px;
+  font-size: var(--todo-font-size);
+}
+
+.font-large {
+  --todo-font-size: 18px;
+  --todo-row-height: 66px;
+  --todo-control-height: 48px;
+  font-size: var(--todo-font-size);
 }
 
 .todo-panel {
+  animation: bubble-enter 130ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(243, 246, 247, 0.92)),
+    #f4f6f7;
+  border: 1px solid rgba(28, 28, 30, 0.04);
+  border-radius: 18px;
+  box-shadow:
+    0 8px 18px rgba(20, 30, 38, 0.05),
+    0 1px 4px rgba(20, 30, 38, 0.04);
   display: flex;
   flex-direction: column;
-  margin: 0 auto;
+  margin: 0;
   min-height: 0;
-  width: min(100%, 460px);
+  padding: 16px;
+  position: relative;
+  width: 100%;
+}
+
+.todo-panel::before {
+  background: rgba(255, 255, 255, 0.95);
+  border-left: 1px solid rgba(28, 28, 30, 0.04);
+  border-top: 1px solid rgba(28, 28, 30, 0.04);
+  content: "";
+  height: 16px;
+  left: 50%;
+  position: absolute;
+  top: -8px;
+  transform: translateX(-50%) rotate(45deg);
+  width: 16px;
 }
 
 .date-header {
@@ -66,12 +117,12 @@ input:disabled {
   gap: 14px;
   justify-content: space-between;
   margin-bottom: 10px;
-  padding: 0 2px;
+  padding: 0 4px;
 }
 
 .date-label {
   color: #575d63;
-  font-size: 1.05rem;
+  font-size: 1.05em;
   font-weight: 700;
   letter-spacing: 0;
   margin: 0;
@@ -109,10 +160,10 @@ input:disabled {
   background: rgba(255, 255, 255, 0.82);
   border: 1px solid rgba(28, 28, 30, 0.1);
   border-radius: 8px;
-  box-shadow: 0 14px 34px rgba(25, 36, 44, 0.12);
+  box-shadow: 0 10px 24px rgba(25, 36, 44, 0.1);
   display: grid;
   gap: 8px;
-  grid-template-columns: 1fr 42px;
+  grid-template-columns: 1fr var(--todo-control-height);
   margin-bottom: 12px;
   padding: 8px;
 }
@@ -121,7 +172,7 @@ input:disabled {
   background: transparent;
   border: 0;
   color: #1c1c1e;
-  height: 42px;
+  height: var(--todo-control-height);
   min-width: 0;
   outline: 0;
   padding: 0 10px;
@@ -152,8 +203,8 @@ input:disabled {
 .add-button {
   background: #1d5f8c;
   color: white;
-  height: 42px;
-  width: 42px;
+  height: var(--todo-control-height);
+  width: var(--todo-control-height);
 }
 
 .add-button:hover:not(:disabled) {
@@ -179,10 +230,10 @@ input:disabled {
 }
 
 .list-frame {
-  background: rgba(255, 255, 255, 0.68);
+  background: rgba(255, 255, 255, 0.56);
   border: 1px solid rgba(28, 28, 30, 0.08);
   border-radius: 8px;
-  box-shadow: 0 18px 44px rgba(25, 36, 44, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.54);
   min-height: 0;
   overscroll-behavior: contain;
   overflow: auto;
@@ -203,18 +254,178 @@ input:disabled {
   animation: row-slide-in 180ms ease both;
   display: grid;
   gap: 10px;
-  grid-template-columns: minmax(0, 1fr) 78px;
-  min-height: 58px;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: var(--todo-row-height);
   padding: 8px 8px 8px 14px;
+  position: relative;
   transition:
     background 180ms ease,
     opacity 180ms ease,
     transform 180ms ease;
 }
 
+.settings-shell {
+  background: #eceff1;
+  color: #1c1c1e;
+  display: flex;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.settings-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.settings-header h1 {
+  font-size: 1.35rem;
+  letter-spacing: 0;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.settings-row {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(28, 28, 30, 0.08);
+  border-radius: 8px;
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+  padding: 12px;
+}
+
+.settings-group {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(28, 28, 30, 0.08);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.settings-group-header {
+  margin-bottom: 12px;
+}
+
+.settings-hint {
+  color: #8a8f95;
+  font-size: 0.8rem;
+  font-weight: 650;
+  letter-spacing: 0;
+  margin: 2px 0 0;
+}
+
+.settings-label {
+  color: #575d63;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  margin: 0;
+}
+
+.segmented-control {
+  background: rgba(28, 28, 30, 0.08);
+  border-radius: 8px;
+  display: grid;
+  gap: 2px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 3px;
+  width: 190px;
+}
+
+.segmented-control button {
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: #575d63;
+  font-size: 0.82rem;
+  font-weight: 700;
+  height: 30px;
+  letter-spacing: 0;
+  text-transform: capitalize;
+}
+
+.segmented-control button.selected {
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(28, 28, 30, 0.14);
+  color: #1c1c1e;
+}
+
+.age-threshold-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.age-threshold {
+  align-items: center;
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) 56px;
+  padding: 8px;
+}
+
+.age-threshold span {
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.age-threshold input {
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(28, 28, 30, 0.12);
+  border-radius: 6px;
+  color: #1c1c1e;
+  height: 30px;
+  outline: 0;
+  padding: 0 7px;
+  width: 100%;
+}
+
+.age-threshold-yellow,
+.todo-age-yellow {
+  background: rgba(255, 229, 94, 0.28);
+}
+
+.age-threshold-amber,
+.todo-age-amber {
+  background: rgba(255, 190, 78, 0.32);
+}
+
+.age-threshold-orange,
+.todo-age-orange {
+  background: rgba(255, 137, 74, 0.34);
+}
+
+.age-threshold-red,
+.todo-age-red {
+  background: rgba(232, 82, 72, 0.32);
+}
+
 .todo-row:hover,
 .todo-row:focus-within {
   background: rgba(255, 255, 255, 0.44);
+}
+
+.todo-age-yellow:hover,
+.todo-age-yellow:focus-within {
+  background: rgba(255, 229, 94, 0.4);
+}
+
+.todo-age-amber:hover,
+.todo-age-amber:focus-within {
+  background: rgba(255, 190, 78, 0.44);
+}
+
+.todo-age-orange:hover,
+.todo-age-orange:focus-within {
+  background: rgba(255, 137, 74, 0.46);
+}
+
+.todo-age-red:hover,
+.todo-age-red:focus-within {
+  background: rgba(232, 82, 72, 0.44);
 }
 
 .todo-row-done {
@@ -232,6 +443,7 @@ input:disabled {
   gap: 12px;
   grid-template-columns: 22px minmax(0, 1fr);
   min-width: 0;
+  padding-right: 0;
 }
 
 .todo-label input[type="checkbox"] {
@@ -274,22 +486,53 @@ input:disabled {
   justify-content: flex-end;
   opacity: 0;
   pointer-events: none;
+  position: absolute;
+  right: 8px;
+  top: 50%;
   transition:
     opacity 140ms ease,
     transform 140ms ease;
-  transform: translateX(4px);
+  transform: translateY(-50%) translateX(4px);
+}
+
+.todo-row.is-editing .row-actions {
+  display: none;
 }
 
 .todo-row:hover .row-actions,
 .todo-row:focus-within .row-actions {
   opacity: 1;
   pointer-events: auto;
-  transform: translateX(0);
+  transform: translateY(-50%) translateX(0);
+}
+
+.todo-row:hover .row-actions::before,
+.todo-row:focus-within .row-actions::before {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 10px;
+  bottom: -2px;
+  box-shadow: 0 0 0 1px rgba(28, 28, 30, 0.04);
+  content: "";
+  left: -8px;
+  position: absolute;
+  right: -8px;
+  top: -2px;
+  z-index: -1;
 }
 
 .edit-button {
   background: transparent;
   color: #7c8790;
+}
+
+.snooze-button {
+  background: transparent;
+  color: #7c8790;
+}
+
+.snooze-button:hover:not(:disabled) {
+  background: #edf0dc;
+  color: #6c741c;
 }
 
 .edit-button:hover:not(:disabled) {
@@ -338,7 +581,20 @@ input:disabled {
   }
 }
 
+@keyframes bubble-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .todo-panel,
   .todo-row {
     animation: none;
     transition: none;
@@ -347,7 +603,7 @@ input:disabled {
 
 @media (max-width: 460px) {
   .app-shell {
-    padding: 16px 20px 20px;
+    padding: 16px 0 0;
   }
 
   .todo-panel {
@@ -358,7 +614,75 @@ input:disabled {
 @media (prefers-color-scheme: dark) {
   :root {
     color: #f5f5f7;
+    background: transparent;
+  }
+
+  .settings-shell {
     background: #191b1f;
+    color: #f5f5f7;
+  }
+
+  .settings-row,
+  .settings-group {
+    background: rgba(44, 47, 52, 0.84);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .settings-label,
+  .settings-hint,
+  .segmented-control button {
+    color: #a0a7ae;
+  }
+
+  .segmented-control {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .segmented-control button.selected {
+    background: rgba(255, 255, 255, 0.14);
+    box-shadow: none;
+    color: #f5f5f7;
+  }
+
+  .age-threshold input {
+    background: rgba(25, 28, 32, 0.72);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #f5f5f7;
+  }
+
+  .age-threshold-yellow,
+  .todo-age-yellow {
+    background: rgba(255, 229, 94, 0.16);
+  }
+
+  .age-threshold-amber,
+  .todo-age-amber {
+    background: rgba(255, 190, 78, 0.18);
+  }
+
+  .age-threshold-orange,
+  .todo-age-orange {
+    background: rgba(255, 137, 74, 0.2);
+  }
+
+  .age-threshold-red,
+  .todo-age-red {
+    background: rgba(232, 82, 72, 0.22);
+  }
+
+  .todo-panel {
+    background:
+      linear-gradient(180deg, rgba(46, 50, 55, 0.96), rgba(31, 34, 38, 0.94)),
+      #202328;
+    border-color: rgba(255, 255, 255, 0.04);
+    box-shadow:
+      0 8px 18px rgba(0, 0, 0, 0.08),
+      0 1px 4px rgba(0, 0, 0, 0.06);
+  }
+
+  .todo-panel::before {
+    background: rgba(46, 50, 55, 0.96);
+    border-color: rgba(255, 255, 255, 0.04);
   }
 
   .date-label,
@@ -387,6 +711,26 @@ input:disabled {
     background: rgba(255, 255, 255, 0.04);
   }
 
+  .todo-age-yellow:hover,
+  .todo-age-yellow:focus-within {
+    background: rgba(255, 229, 94, 0.22);
+  }
+
+  .todo-age-amber:hover,
+  .todo-age-amber:focus-within {
+    background: rgba(255, 190, 78, 0.24);
+  }
+
+  .todo-age-orange:hover,
+  .todo-age-orange:focus-within {
+    background: rgba(255, 137, 74, 0.26);
+  }
+
+  .todo-age-red:hover,
+  .todo-age-red:focus-within {
+    background: rgba(232, 82, 72, 0.3);
+  }
+
   .edit-input {
     background: rgba(25, 28, 32, 0.72);
     border-color: rgba(104, 163, 201, 0.34);
@@ -395,6 +739,10 @@ input:disabled {
 
   .edit-button:hover:not(:disabled) {
     background: rgba(85, 152, 193, 0.16);
+  }
+
+  .snooze-button:hover:not(:disabled) {
+    background: rgba(210, 217, 84, 0.14);
   }
 
   .delete-button:hover:not(:disabled) {
