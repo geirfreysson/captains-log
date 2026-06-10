@@ -6,6 +6,7 @@ use tauri::{
     AppHandle, Emitter, Manager, PhysicalPosition, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
     WindowEvent,
 };
+use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut};
 use uuid::Uuid;
 
 const WINDOW_LABEL: &str = "main";
@@ -308,7 +309,27 @@ fn setup_menu_bar(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>
         });
     }
 
+    let shortcut = Shortcut::new(Some(Modifiers::SUPER | Modifiers::SHIFT), Code::KeyT);
+    let handle2 = app.handle().clone();
+    app.handle().plugin(
+        tauri_plugin_global_shortcut::Builder::new()
+            .with_handler(move |_app, _shortcut, event| {
+                if event.state() == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                    toggle_popup(&handle2, None);
+                }
+            })
+            .build(),
+    )?;
+    app.global_shortcut().register(shortcut)?;
+
     Ok(())
+}
+
+#[tauri::command]
+fn hide_window(app: AppHandle) {
+    if let Some(window) = app.get_webview_window(WINDOW_LABEL) {
+        let _ = window.hide();
+    }
 }
 
 #[tauri::command]
@@ -448,6 +469,7 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            hide_window,
             load_todos,
             load_settings,
             save_settings,

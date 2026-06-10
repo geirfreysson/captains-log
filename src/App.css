@@ -537,6 +537,10 @@ input:disabled {
   background: rgba(232, 82, 72, 0.32);
 }
 
+.todo-row-selected {
+  background: rgba(29, 95, 140, 0.12);
+}
+
 .todo-row:hover,
 .todo-row:focus-within {
   background: rgba(255, 255, 255, 0.44);
@@ -930,6 +934,10 @@ input:disabled {
 
   .todo-row + .todo-row {
     border-top-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .todo-row-selected {
+    background: rgba(29, 95, 140, 0.24);
   }
 
   .todo-row:hover,

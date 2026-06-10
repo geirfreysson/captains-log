@@ -173,7 +173,9 @@ function TodoView() {
   const [editingDescription, setEditingDescription] = useState("");
   const [editingDueDate, setEditingDueDate] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
   const fromPopstateRef = useRef(false);
+  const addInputRef = useRef<HTMLInputElement>(null);
 
   const openTodos = useMemo(
     () =>
@@ -237,6 +239,8 @@ function TodoView() {
     });
     const unlistenPopupOpened = listen("popup-opened", () => {
       refreshData();
+      setSelectedIndex(-1);
+      setTimeout(() => addInputRef.current?.focus(), 50);
     });
 
     return () => {
@@ -256,6 +260,73 @@ function TodoView() {
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, [editingId]);
+
+  useEffect(() => {
+    setSelectedIndex(-1);
+  }, [visibleList]);
+
+  useEffect(() => {
+    if (editingId) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement;
+      const isAddInput = target === addInputRef.current;
+      const isTyping =
+        (target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable) && !isAddInput;
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        invoke("hide_window");
+        return;
+      }
+
+      if (isTyping) return;
+
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        if (isAddInput) addInputRef.current?.blur();
+        setSelectedIndex((prev) => {
+          const max = visibleTodos.length - 1;
+          return prev < max ? prev + 1 : max;
+        });
+        return;
+      }
+
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        if (isAddInput) addInputRef.current?.blur();
+        setSelectedIndex((prev) => {
+          if (prev <= 0) {
+            addInputRef.current?.focus();
+            return -1;
+          }
+          return prev - 1;
+        });
+        return;
+      }
+
+      if (isAddInput) return;
+
+      if (event.key === "Enter" && selectedIndex >= 0) {
+        event.preventDefault();
+        const todo = visibleTodos[selectedIndex];
+        if (todo) startEditing(todo);
+        return;
+      }
+
+      if (event.key === " " && selectedIndex >= 0) {
+        event.preventDefault();
+        const todo = visibleTodos[selectedIndex];
+        if (todo) setCompleted(todo.id, !todo.completed);
+        return;
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [editingId, selectedIndex, visibleTodos]);
 
   function showError(value: unknown) {
     setError(value instanceof Error ? value.message : String(value));
@@ -411,15 +482,16 @@ function TodoView() {
     }
   }
 
-  function renderTodo(todo: Todo) {
+  function renderTodo(todo: Todo, index: number) {
     const ageClassName =
       visibleList === "open"
         ? getTodoColorClassName(todo, settings.ageColorDays)
         : "";
+    const isSelected = index === selectedIndex;
 
     return (
       <li
-        className={`todo-row ${todo.completed ? "todo-row-done" : ""} ${ageClassName}`}
+        className={`todo-row ${todo.completed ? "todo-row-done" : ""} ${ageClassName} ${isSelected ? "todo-row-selected" : ""}`}
         key={todo.id}
       >
         <input
@@ -461,6 +533,7 @@ function TodoView() {
 
         <form className="add-form" onSubmit={addTodo}>
           <input
+            ref={addInputRef}
             aria-label="New todo"
             value={newLabel}
             onChange={(event) => setNewLabel(event.currentTarget.value)}
@@ -628,7 +701,7 @@ function TodoView() {
                 <p className="empty-state">{emptyMessage}</p>
               ) : (
                 <ul className="todo-list" key={visibleList}>
-                  {visibleTodos.map(renderTodo)}
+                  {visibleTodos.map((todo, index) => renderTodo(todo, index))}
                 </ul>
               )}
             </section>
