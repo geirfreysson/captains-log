@@ -19,10 +19,26 @@ const MENU_QUIT: &str = "quit";
 struct Todo {
     id: String,
     label: String,
+    #[serde(default)]
+    description: String,
+    #[serde(default)]
+    due_at: Option<String>,
     completed: bool,
     created_at: String,
     #[serde(default)]
+    snoozed_at: Option<String>,
+    #[serde(default)]
     completed_at: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RenameTodoArgs {
+    id: String,
+    label: String,
+    description: String,
+    #[serde(default)]
+    due_date: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
@@ -284,6 +300,14 @@ fn setup_menu_bar(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>
         })
         .build(app)?;
 
+    #[cfg(target_os = "macos")]
+    if let Some(webview) = app.get_webview_window(WINDOW_LABEL) {
+        let _ = webview.with_webview(|webview| unsafe {
+            let wk: &objc2_web_kit::WKWebView = &*webview.inner().cast();
+            wk.setAllowsBackForwardNavigationGestures(true);
+        });
+    }
+
     Ok(())
 }
 
@@ -317,8 +341,11 @@ fn create_todo(app: AppHandle, label: String) -> Result<Vec<Todo>, String> {
         Todo {
             id: Uuid::new_v4().to_string(),
             label,
+            description: String::new(),
+            due_at: None,
             completed: false,
             created_at: now_timestamp(),
+            snoozed_at: None,
             completed_at: None,
         },
     );
@@ -344,8 +371,8 @@ fn set_todo_completed(app: AppHandle, id: String, completed: bool) -> Result<Vec
 }
 
 #[tauri::command]
-fn rename_todo(app: AppHandle, id: String, label: String) -> Result<Vec<Todo>, String> {
-    let label = label.trim().to_string();
+fn rename_todo(app: AppHandle, args: RenameTodoArgs) -> Result<Vec<Todo>, String> {
+    let label = args.label.trim().to_string();
 
     if label.is_empty() {
         return Err("Todo label cannot be empty.".into());
@@ -355,10 +382,19 @@ fn rename_todo(app: AppHandle, id: String, label: String) -> Result<Vec<Todo>, S
     let todo = store
         .todos
         .iter_mut()
-        .find(|todo| todo.id == id)
+        .find(|todo| todo.id == args.id)
         .ok_or_else(|| "Todo not found.".to_string())?;
 
     todo.label = label;
+    todo.description = args.description;
+    todo.due_at = args.due_date.and_then(|value| {
+        let trimmed = value.trim().to_string();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
+    });
     save_store(&app, &store)?;
 
     Ok(store.todos)
@@ -377,7 +413,7 @@ fn snooze_todo(app: AppHandle, id: String) -> Result<Vec<Todo>, String> {
         return Err("Completed todos cannot be snoozed.".into());
     }
 
-    todo.created_at = now_timestamp();
+    todo.snoozed_at = Some(now_timestamp());
     save_store(&app, &store)?;
 
     Ok(store.todos)

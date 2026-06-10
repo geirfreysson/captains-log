@@ -249,12 +249,126 @@ input:disabled {
   padding: 0;
 }
 
+.editor-view {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 100%;
+  padding: 14px;
+}
+
+.editor-title-field,
+.editor-due-date-field,
+.editor-description-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.editor-meta {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.editor-meta-item {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(28, 28, 30, 0.08);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 12px;
+}
+
+.editor-meta-label {
+  color: #737980;
+  font-size: 0.74rem;
+  font-weight: 750;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.editor-meta-value {
+  color: #1c1c1e;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.editor-input {
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid rgba(29, 95, 140, 0.22);
+  border-radius: 8px;
+  color: #1c1c1e;
+  min-width: 0;
+  outline: 0;
+  width: 100%;
+}
+
+.editor-title-input {
+  font-size: 1.08em;
+  font-weight: 700;
+  height: var(--todo-control-height);
+  padding: 0 12px;
+}
+
+.editor-description-input {
+  min-height: 124px;
+  padding: 10px 12px;
+  resize: vertical;
+}
+
+.editor-due-date-input {
+  height: var(--todo-control-height);
+  padding: 0 12px;
+}
+
+.editor-input:focus {
+  border-color: #1d5f8c;
+  box-shadow: 0 0 0 3px rgba(29, 95, 140, 0.14);
+}
+
+.editor-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.editor-button {
+  border: 0;
+  border-radius: 8px;
+  font-weight: 700;
+  height: 38px;
+  padding: 0 14px;
+}
+
+.editor-cancel {
+  background: rgba(124, 135, 144, 0.1);
+  color: #575d63;
+}
+
+.editor-save {
+  background: #1d5f8c;
+  color: white;
+}
+
+.editor-save:hover:not(:disabled) {
+  background: #164c70;
+}
+
+.editor-cancel:hover:not(:disabled) {
+  background: rgba(124, 135, 144, 0.16);
+}
+
 .todo-row {
   align-items: center;
   animation: row-slide-in 180ms ease both;
   display: grid;
   gap: 10px;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: 22px minmax(0, 1fr);
   min-height: var(--todo-row-height);
   padding: 8px 8px 8px 14px;
   position: relative;
@@ -403,6 +517,26 @@ input:disabled {
   background: rgba(232, 82, 72, 0.32);
 }
 
+.todo-due-far {
+  background: rgba(255, 208, 120, 0.26);
+}
+
+.todo-due-mid {
+  background: rgba(255, 176, 82, 0.3);
+}
+
+.todo-due-soon {
+  background: rgba(255, 138, 62, 0.32);
+}
+
+.todo-due-close {
+  background: rgba(242, 107, 48, 0.34);
+}
+
+.todo-due-overdue {
+  background: rgba(232, 82, 72, 0.32);
+}
+
 .todo-row:hover,
 .todo-row:focus-within {
   background: rgba(255, 255, 255, 0.44);
@@ -428,6 +562,31 @@ input:disabled {
   background: rgba(232, 82, 72, 0.44);
 }
 
+.todo-due-far:hover,
+.todo-due-far:focus-within {
+  background: rgba(255, 208, 120, 0.34);
+}
+
+.todo-due-mid:hover,
+.todo-due-mid:focus-within {
+  background: rgba(255, 176, 82, 0.38);
+}
+
+.todo-due-soon:hover,
+.todo-due-soon:focus-within {
+  background: rgba(255, 138, 62, 0.42);
+}
+
+.todo-due-close:hover,
+.todo-due-close:focus-within {
+  background: rgba(242, 107, 48, 0.46);
+}
+
+.todo-due-overdue:hover,
+.todo-due-overdue:focus-within {
+  background: rgba(232, 82, 72, 0.44);
+}
+
 .todo-row-done {
   animation-name: row-settle-done;
 }
@@ -436,118 +595,98 @@ input:disabled {
   border-top: 1px solid rgba(28, 28, 30, 0.08);
 }
 
-.todo-label {
-  align-items: center;
-  color: #1c1c1e;
-  display: grid;
-  gap: 12px;
-  grid-template-columns: 22px minmax(0, 1fr);
-  min-width: 0;
-  padding-right: 0;
-}
-
-.todo-label input[type="checkbox"] {
+.todo-checkbox {
   accent-color: #1d5f8c;
   height: 18px;
   margin: 0;
   width: 18px;
 }
 
-.todo-label span {
+.todo-label-button {
+  background: none;
+  border: 0;
+  color: #1c1c1e;
+  cursor: pointer;
+  font: inherit;
+  min-width: 0;
   overflow-wrap: anywhere;
+  padding: 0;
+  text-align: left;
 }
 
-.todo-label input:checked + span {
+.todo-label-button:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 2px;
+}
+
+.todo-row-done .todo-label-button {
   color: #7b8187;
   text-decoration: line-through;
   text-decoration-thickness: 1.5px;
 }
 
-.edit-input {
-  background: rgba(255, 255, 255, 0.84);
-  border: 1px solid rgba(29, 95, 140, 0.32);
-  border-radius: 6px;
-  color: #1c1c1e;
-  height: 34px;
-  min-width: 0;
-  outline: 0;
-  padding: 0 9px;
-  width: 100%;
-}
-
-.edit-input:focus {
-  border-color: #1d5f8c;
-  box-shadow: 0 0 0 3px rgba(29, 95, 140, 0.14);
-}
-
-.row-actions {
+.editor-header {
   display: flex;
-  gap: 2px;
-  justify-content: flex-end;
-  opacity: 0;
-  pointer-events: none;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.editor-header .editor-title-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.editor-dropdown {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.editor-menu-button {
+  background: rgba(124, 135, 144, 0.1);
+  color: #575d63;
+}
+
+.editor-menu-button:hover:not(:disabled) {
+  background: rgba(124, 135, 144, 0.2);
+}
+
+.editor-dropdown-menu {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(28, 28, 30, 0.12);
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(20, 30, 38, 0.12);
+  display: flex;
+  flex-direction: column;
+  min-width: 120px;
+  overflow: hidden;
   position: absolute;
-  right: 8px;
-  top: 50%;
-  transition:
-    opacity 140ms ease,
-    transform 140ms ease;
-  transform: translateY(-50%) translateX(4px);
+  right: 0;
+  top: 100%;
+  z-index: 10;
 }
 
-.todo-row.is-editing .row-actions {
-  display: none;
+.editor-dropdown-menu button {
+  background: none;
+  border: 0;
+  color: #1c1c1e;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 10px 14px;
+  text-align: left;
 }
 
-.todo-row:hover .row-actions,
-.todo-row:focus-within .row-actions {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateY(-50%) translateX(0);
+.editor-dropdown-menu button:hover:not(:disabled) {
+  background: rgba(28, 28, 30, 0.06);
 }
 
-.todo-row:hover .row-actions::before,
-.todo-row:focus-within .row-actions::before {
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 10px;
-  bottom: -2px;
-  box-shadow: 0 0 0 1px rgba(28, 28, 30, 0.04);
-  content: "";
-  left: -8px;
-  position: absolute;
-  right: -8px;
-  top: -2px;
-  z-index: -1;
+.editor-dropdown-delete {
+  color: #a33a2d !important;
 }
 
-.edit-button {
-  background: transparent;
-  color: #7c8790;
-}
-
-.snooze-button {
-  background: transparent;
-  color: #7c8790;
-}
-
-.snooze-button:hover:not(:disabled) {
-  background: #edf0dc;
-  color: #6c741c;
-}
-
-.edit-button:hover:not(:disabled) {
-  background: #e7eff3;
-  color: #1d5f8c;
-}
-
-.delete-button {
-  background: transparent;
-  color: #8d949a;
-}
-
-.delete-button:hover:not(:disabled) {
-  background: #f4e7e4;
-  color: #a33a2d;
+.editor-dropdown-delete:hover:not(:disabled) {
+  background: rgba(163, 58, 45, 0.08) !important;
 }
 
 .empty-state {
@@ -670,6 +809,26 @@ input:disabled {
     background: rgba(232, 82, 72, 0.22);
   }
 
+  .todo-due-far {
+    background: rgba(255, 208, 120, 0.14);
+  }
+
+  .todo-due-mid {
+    background: rgba(255, 176, 82, 0.18);
+  }
+
+  .todo-due-soon {
+    background: rgba(255, 138, 62, 0.22);
+  }
+
+  .todo-due-close {
+    background: rgba(242, 107, 48, 0.26);
+  }
+
+  .todo-due-overdue {
+    background: rgba(232, 82, 72, 0.22);
+  }
+
   .todo-panel {
     background:
       linear-gradient(180deg, rgba(46, 50, 55, 0.96), rgba(31, 34, 38, 0.94)),
@@ -697,9 +856,76 @@ input:disabled {
     box-shadow: 0 18px 44px rgba(0, 0, 0, 0.26);
   }
 
-  .add-form input,
-  .todo-label {
+  .editor-meta-item {
+    background: rgba(25, 28, 32, 0.72);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .editor-meta-label {
+    color: #a0a7ae;
+  }
+
+  .editor-meta-value {
     color: #f5f5f7;
+  }
+
+  .editor-input {
+    background: rgba(25, 28, 32, 0.72);
+    border-color: rgba(104, 163, 201, 0.34);
+    color: #f5f5f7;
+  }
+
+  .editor-save:hover:not(:disabled) {
+    background: #225f88;
+  }
+
+  .editor-cancel {
+    background: rgba(255, 255, 255, 0.08);
+    color: #d0d6dc;
+  }
+
+  .editor-cancel:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.14);
+  }
+
+  .add-form input,
+  .todo-label-button {
+    color: #f5f5f7;
+  }
+
+  .todo-row-done .todo-label-button {
+    color: #7b8187;
+  }
+
+  .editor-menu-button {
+    background: rgba(255, 255, 255, 0.08);
+    color: #d0d6dc;
+  }
+
+  .editor-menu-button:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.14);
+  }
+
+  .editor-dropdown-menu {
+    background: rgba(44, 47, 52, 0.96);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.24);
+  }
+
+  .editor-dropdown-menu button {
+    color: #f5f5f7;
+  }
+
+  .editor-dropdown-menu button:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .editor-dropdown-delete {
+    color: #ff8a7a !important;
+  }
+
+  .editor-dropdown-delete:hover:not(:disabled) {
+    background: rgba(174, 63, 49, 0.18) !important;
   }
 
   .todo-row + .todo-row {
@@ -731,22 +957,29 @@ input:disabled {
     background: rgba(232, 82, 72, 0.3);
   }
 
-  .edit-input {
-    background: rgba(25, 28, 32, 0.72);
-    border-color: rgba(104, 163, 201, 0.34);
-    color: #f5f5f7;
+  .todo-due-far:hover,
+  .todo-due-far:focus-within {
+    background: rgba(255, 208, 120, 0.2);
   }
 
-  .edit-button:hover:not(:disabled) {
-    background: rgba(85, 152, 193, 0.16);
+  .todo-due-mid:hover,
+  .todo-due-mid:focus-within {
+    background: rgba(255, 176, 82, 0.24);
   }
 
-  .snooze-button:hover:not(:disabled) {
-    background: rgba(210, 217, 84, 0.14);
+  .todo-due-soon:hover,
+  .todo-due-soon:focus-within {
+    background: rgba(255, 138, 62, 0.28);
   }
 
-  .delete-button:hover:not(:disabled) {
-    background: rgba(174, 63, 49, 0.18);
+  .todo-due-close:hover,
+  .todo-due-close:focus-within {
+    background: rgba(242, 107, 48, 0.3);
+  }
+
+  .todo-due-overdue:hover,
+  .todo-due-overdue:focus-within {
+    background: rgba(232, 82, 72, 0.3);
   }
 
   .error-message {

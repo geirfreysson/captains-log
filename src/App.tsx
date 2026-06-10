@@ -1,14 +1,17 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
-import { Clock, Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, Plus } from "lucide-react";
 import "./App.css";
 
 type Todo = {
   id: string;
   label: string;
+  description: string;
+  dueAt?: string | null;
   completed: boolean;
   createdAt: string;
+  snoozedAt?: string | null;
   completedAt?: string | null;
 };
 
@@ -167,6 +170,10 @@ function TodoView() {
   const [visibleList, setVisibleList] = useState<"open" | "done">("open");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingLabel, setEditingLabel] = useState("");
+  const [editingDescription, setEditingDescription] = useState("");
+  const [editingDueDate, setEditingDueDate] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const fromPopstateRef = useRef(false);
 
   const openTodos = useMemo(
     () =>
@@ -174,8 +181,15 @@ function TodoView() {
         .filter((todo) => !todo.completed)
         .slice()
         .sort((a, b) => {
-          const aTime = Date.parse(a.createdAt);
-          const bTime = Date.parse(b.createdAt);
+          const aDue = a.dueAt ? parseFlexibleTimestamp(a.dueAt) : Infinity;
+          const bDue = b.dueAt ? parseFlexibleTimestamp(b.dueAt) : Infinity;
+
+          if (aDue !== bDue) {
+            return aDue - bDue;
+          }
+
+          const aTime = Date.parse(getLiveStartAt(a));
+          const bTime = Date.parse(getLiveStartAt(b));
 
           return aTime - bTime;
         }),
@@ -203,6 +217,7 @@ function TodoView() {
   const paneLabel = visibleList === "open" ? "Open tasks" : "Done tasks";
   const nextList = visibleList === "open" ? "done" : "open";
   const nextCount = visibleList === "open" ? doneTodos.length : openTodos.length;
+  const editingTodo = todos.find((todo) => todo.id === editingId) ?? null;
 
   const displayDate = useMemo(
     () =>
@@ -229,6 +244,18 @@ function TodoView() {
       unlistenPopupOpened.then((dispose) => dispose());
     };
   }, []);
+
+  useEffect(() => {
+    if (!editingId) return;
+
+    function handlePopState() {
+      fromPopstateRef.current = true;
+      cancelEditing();
+    }
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [editingId]);
 
   function showError(value: unknown) {
     setError(value instanceof Error ? value.message : String(value));
@@ -260,7 +287,8 @@ function TodoView() {
     setIsCreating(true);
 
     try {
-      setTodos(await invoke<Todo[]>("create_todo", { label }));
+      await invoke<Todo[]>("create_todo", { label });
+      await refreshData();
       setNewLabel("");
     } catch (value) {
       showError(value);
@@ -274,12 +302,11 @@ function TodoView() {
     setPendingId(id);
 
     try {
-      setTodos(
-        await invoke<Todo[]>("set_todo_completed", {
-          id,
-          completed,
-        }),
-      );
+      await invoke<Todo[]>("set_todo_completed", {
+        id,
+        completed,
+      });
+      await refreshData();
     } catch (value) {
       showError(value);
     } finally {
@@ -292,7 +319,8 @@ function TodoView() {
     setPendingId(id);
 
     try {
-      setTodos(await invoke<Todo[]>("delete_todo", { id }));
+      await invoke<Todo[]>("delete_todo", { id });
+      await refreshData();
     } catch (value) {
       showError(value);
     } finally {
@@ -305,7 +333,8 @@ function TodoView() {
     setPendingId(id);
 
     try {
-      setTodos(await invoke<Todo[]>("snooze_todo", { id }));
+      await invoke<Todo[]>("snooze_todo", { id });
+      await refreshData();
     } catch (value) {
       showError(value);
     } finally {
@@ -317,15 +346,31 @@ function TodoView() {
     setError("");
     setEditingId(todo.id);
     setEditingLabel(todo.label);
+    setEditingDescription(todo.description ?? "");
+    setEditingDueDate(todo.dueAt ?? "");
+    window.history.pushState({ editing: true }, "");
   }
 
   function cancelEditing() {
+    const wasEditing = editingId !== null;
+    const fromPopstate = fromPopstateRef.current;
+    fromPopstateRef.current = false;
+
     setEditingId(null);
     setEditingLabel("");
+    setEditingDescription("");
+    setEditingDueDate("");
+    setMenuOpen(false);
+
+    if (wasEditing && !fromPopstate) {
+      window.history.back();
+    }
   }
 
   async function saveEditing(todo: Todo) {
     const label = editingLabel.trim();
+    const description = editingDescription;
+    const dueDate = editingDueDate.trim();
 
     if (!editingId) {
       return;
@@ -336,7 +381,11 @@ function TodoView() {
       return;
     }
 
-    if (label === todo.label) {
+    if (
+      label === todo.label &&
+      description === (todo.description ?? "") &&
+      dueDate === (todo.dueAt ?? "")
+    ) {
       cancelEditing();
       return;
     }
@@ -345,8 +394,16 @@ function TodoView() {
     setPendingId(todo.id);
 
     try {
-      setTodos(await invoke<Todo[]>("rename_todo", { id: todo.id, label }));
+      await invoke<Todo[]>("rename_todo", {
+        args: {
+          id: todo.id,
+          label,
+          description,
+          dueDate: dueDate || null,
+        },
+      });
       cancelEditing();
+      await refreshData();
     } catch (value) {
       showError(value);
     } finally {
@@ -355,82 +412,33 @@ function TodoView() {
   }
 
   function renderTodo(todo: Todo) {
-    const isEditing = editingId === todo.id;
     const ageClassName =
-      visibleList === "open" ? getAgeClassName(todo, settings.ageColorDays) : "";
+      visibleList === "open"
+        ? getTodoColorClassName(todo, settings.ageColorDays)
+        : "";
 
     return (
       <li
-        className={`todo-row ${todo.completed ? "todo-row-done" : ""} ${ageClassName} ${isEditing ? "is-editing" : ""}`}
+        className={`todo-row ${todo.completed ? "todo-row-done" : ""} ${ageClassName}`}
         key={todo.id}
       >
-        <label className="todo-label">
-          <input
-            checked={todo.completed}
-            disabled={pendingId === todo.id || isEditing}
-            onChange={(event) =>
-              setCompleted(todo.id, event.currentTarget.checked)
-            }
-            type="checkbox"
-          />
-          {isEditing ? (
-            <input
-              aria-label={`Rename ${todo.label}`}
-              autoFocus
-              className="edit-input"
-              disabled={pendingId === todo.id}
-              onBlur={() => saveEditing(todo)}
-              onChange={(event) => setEditingLabel(event.currentTarget.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.currentTarget.blur();
-                }
-
-                if (event.key === "Escape") {
-                  cancelEditing();
-                }
-              }}
-              type="text"
-              value={editingLabel}
-            />
-          ) : (
-            <span>{todo.label}</span>
-          )}
-        </label>
-        <div className="row-actions">
-          {!todo.completed ? (
-            <button
-              aria-label={`Snooze ${todo.label}`}
-              className="icon-button snooze-button"
-              disabled={pendingId === todo.id || isEditing}
-              onClick={() => snoozeTodo(todo.id)}
-              title="Snooze todo"
-              type="button"
-            >
-              <Clock aria-hidden="true" size={17} strokeWidth={2.1} />
-            </button>
-          ) : null}
-          <button
-            aria-label={`Rename ${todo.label}`}
-            className="icon-button edit-button"
-            disabled={pendingId === todo.id || isEditing}
-            onClick={() => startEditing(todo)}
-            title="Rename todo"
-            type="button"
-          >
-            <Pencil aria-hidden="true" size={17} strokeWidth={2.1} />
-          </button>
-          <button
-            aria-label={`Delete ${todo.label}`}
-            className="icon-button delete-button"
-            disabled={pendingId === todo.id}
-            onClick={() => deleteTodo(todo.id)}
-            title="Delete todo"
-            type="button"
-          >
-            <Trash2 aria-hidden="true" size={18} strokeWidth={2.1} />
-          </button>
-        </div>
+        <input
+          checked={todo.completed}
+          className="todo-checkbox"
+          disabled={pendingId === todo.id}
+          onChange={(event) =>
+            setCompleted(todo.id, event.currentTarget.checked)
+          }
+          type="checkbox"
+        />
+        <button
+          className="todo-label-button"
+          disabled={pendingId === todo.id}
+          onClick={() => startEditing(todo)}
+          type="button"
+        >
+          {todo.label}
+        </button>
       </li>
     );
   }
@@ -482,7 +490,141 @@ function TodoView() {
             </div>
           ) : (
             <section className="list-frame open-pane" aria-label={paneLabel}>
-              {visibleTodos.length === 0 ? (
+              {editingTodo ? (
+                <div className="editor-view">
+                  <div className="editor-header">
+                    <label className="editor-title-field">
+                      <input
+                        aria-label={`Task title for ${editingTodo.label}`}
+                        autoFocus
+                        className="editor-input editor-title-input"
+                        disabled={pendingId === editingTodo.id}
+                        onChange={(event) =>
+                          setEditingLabel(event.currentTarget.value)
+                        }
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            saveEditing(editingTodo);
+                          }
+
+                          if (event.key === "Escape") {
+                            cancelEditing();
+                          }
+                        }}
+                        type="text"
+                        value={editingLabel}
+                      />
+                    </label>
+
+                    <div className="editor-dropdown">
+                      <button
+                        aria-label="More actions"
+                        className="icon-button editor-menu-button"
+                        onClick={() => setMenuOpen(!menuOpen)}
+                        type="button"
+                      >
+                        <ChevronDown aria-hidden="true" size={18} strokeWidth={2.1} />
+                      </button>
+                      {menuOpen ? (
+                        <div className="editor-dropdown-menu">
+                          {!editingTodo.completed ? (
+                            <button
+                              disabled={pendingId === editingTodo.id}
+                              onClick={() => {
+                                setMenuOpen(false);
+                                snoozeTodo(editingTodo.id);
+                              }}
+                              type="button"
+                            >
+                              Snooze
+                            </button>
+                          ) : null}
+                          <button
+                            className="editor-dropdown-delete"
+                            disabled={pendingId === editingTodo.id}
+                            onClick={() => {
+                              setMenuOpen(false);
+                              deleteTodo(editingTodo.id);
+                            }}
+                            type="button"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="editor-meta">
+                    <div className="editor-meta-item">
+                      <span className="editor-meta-label">Created at</span>
+                      <span className="editor-meta-value">
+                        {formatTimestamp(editingTodo.createdAt)}
+                      </span>
+                    </div>
+                    <div className="editor-meta-item">
+                      <span className="editor-meta-label">Snoozed at</span>
+                      <span className="editor-meta-value">
+                        {editingTodo.snoozedAt
+                          ? formatTimestamp(editingTodo.snoozedAt)
+                          : "—"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <label className="editor-due-date-field">
+                    <span className="editor-meta-label">Due date</span>
+                    <input
+                      aria-label={`Due date for ${editingTodo.label}`}
+                      className="editor-input editor-due-date-input"
+                      disabled={pendingId === editingTodo.id}
+                      onChange={(event) =>
+                        setEditingDueDate(event.currentTarget.value)
+                      }
+                      type="date"
+                      value={editingDueDate}
+                    />
+                  </label>
+
+                  <label className="editor-description-field">
+                    <span className="editor-meta-label">Description</span>
+                    <textarea
+                      aria-label={`Description for ${editingTodo.label}`}
+                      className="editor-input editor-description-input"
+                      disabled={pendingId === editingTodo.id}
+                      onChange={(event) =>
+                        setEditingDescription(event.currentTarget.value)
+                      }
+                      placeholder="Add notes"
+                      rows={6}
+                      value={editingDescription}
+                    />
+                  </label>
+
+                  <div className="editor-actions">
+                    <button
+                      className="editor-button editor-cancel"
+                      disabled={pendingId === editingTodo.id}
+                      onClick={cancelEditing}
+                      type="button"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className="editor-button editor-save"
+                      disabled={
+                        pendingId === editingTodo.id ||
+                        !editingLabel.trim()
+                      }
+                      onClick={() => saveEditing(editingTodo)}
+                      type="button"
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              ) : visibleTodos.length === 0 ? (
                 <p className="empty-state">{emptyMessage}</p>
               ) : (
                 <ul className="todo-list" key={visibleList}>
@@ -498,13 +640,13 @@ function TodoView() {
 }
 
 function getAgeClassName(todo: Todo, thresholds: AgeColorDays) {
-  const createdAt = Date.parse(todo.createdAt);
+  const liveStartAt = Date.parse(getLiveStartAt(todo));
 
-  if (!Number.isFinite(createdAt)) {
+  if (!Number.isFinite(liveStartAt)) {
     return "";
   }
 
-  const daysLive = (Date.now() - createdAt) / (1000 * 60 * 60 * 24);
+  const daysLive = (Date.now() - liveStartAt) / (1000 * 60 * 60 * 24);
 
   if (daysLive >= thresholds.red) {
     return "todo-age-red";
@@ -523,6 +665,84 @@ function getAgeClassName(todo: Todo, thresholds: AgeColorDays) {
   }
 
   return "";
+}
+
+function getTodoColorClassName(todo: Todo, thresholds: AgeColorDays) {
+  if (todo.dueAt) {
+    return getDueDateClassName(todo.dueAt, thresholds);
+  }
+
+  return getAgeClassName(todo, thresholds);
+}
+
+function getDueDateClassName(dueAt: string, thresholds: AgeColorDays) {
+  const dueDate = parseFlexibleTimestamp(dueAt);
+
+  if (!Number.isFinite(dueDate)) {
+    return "";
+  }
+
+  const daysUntilDue = (dueDate - Date.now()) / (1000 * 60 * 60 * 24);
+
+  if (daysUntilDue < 0) {
+    return "todo-due-overdue";
+  }
+
+  if (daysUntilDue <= thresholds.yellow) {
+    return "todo-due-close";
+  }
+
+  if (daysUntilDue <= thresholds.amber) {
+    return "todo-due-soon";
+  }
+
+  if (daysUntilDue <= thresholds.orange) {
+    return "todo-due-mid";
+  }
+
+  if (daysUntilDue <= thresholds.red) {
+    return "todo-due-far";
+  }
+
+  return "todo-due-far";
+}
+
+function getLiveStartAt(todo: Todo) {
+  return todo.snoozedAt ?? todo.createdAt;
+}
+
+function formatTimestamp(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
+function parseFlexibleTimestamp(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return Number.NaN;
+  }
+
+  if (trimmed.length > 10) {
+    const parsed = Date.parse(trimmed);
+    return Number.isNaN(parsed) ? Number.NaN : parsed;
+  }
+
+  const [year, month, day] = trimmed.split("-").map((part) => Number(part));
+
+  if (!year || !month || !day) {
+    return Number.NaN;
+  }
+
+  return new Date(year, month - 1, day).getTime();
 }
 
 export default App;
