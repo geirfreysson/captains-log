@@ -221,6 +221,35 @@ function TodoView() {
   const nextCount = visibleList === "open" ? doneTodos.length : openTodos.length;
   const editingTodo = todos.find((todo) => todo.id === editingId) ?? null;
 
+  const doneWeekGroups = useMemo(() => {
+    if (visibleList !== "done") return [];
+
+    const groups: { label: string; todos: Todo[] }[] = [];
+    let currentKey = "";
+    let currentGroup: { label: string; todos: Todo[] } | null = null;
+
+    for (const todo of doneTodos) {
+      const completedDate = new Date(todo.completedAt ?? todo.createdAt);
+      const weekStart = getWeekStart(completedDate);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      const key = weekStart.toISOString();
+
+      if (key !== currentKey) {
+        currentKey = key;
+        currentGroup = {
+          label: formatWeekRange(weekStart, weekEnd),
+          todos: [],
+        };
+        groups.push(currentGroup);
+      }
+
+      currentGroup!.todos.push(todo);
+    }
+
+    return groups;
+  }, [doneTodos, visibleList]);
+
   const displayDate = useMemo(
     () =>
       new Intl.DateTimeFormat(undefined, {
@@ -699,6 +728,24 @@ function TodoView() {
                 </div>
               ) : visibleTodos.length === 0 ? (
                 <p className="empty-state">{emptyMessage}</p>
+              ) : visibleList === "done" ? (
+                <div className="done-groups" key="done">
+                  {(() => {
+                    let flatIndex = 0;
+                    return doneWeekGroups.map((group) => (
+                      <div className="done-week-group" key={group.label}>
+                        <p className="week-header">{group.label}</p>
+                        <ul className="todo-list">
+                          {group.todos.map((todo) => {
+                            const el = renderTodo(todo, flatIndex);
+                            flatIndex++;
+                            return el;
+                          })}
+                        </ul>
+                      </div>
+                    ));
+                  })()}
+                </div>
               ) : (
                 <ul className="todo-list" key={visibleList}>
                   {visibleTodos.map((todo, index) => renderTodo(todo, index))}
@@ -816,6 +863,22 @@ function parseFlexibleTimestamp(value: string) {
   }
 
   return new Date(year, month - 1, day).getTime();
+}
+
+function getWeekStart(date: Date) {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const day = d.getDay();
+  const diff = day === 0 ? 6 : day - 1;
+  d.setDate(d.getDate() - diff);
+  return d;
+}
+
+function formatWeekRange(start: Date, end: Date) {
+  const fmt = new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+  return `${fmt.format(start)} – ${fmt.format(end)}`;
 }
 
 export default App;

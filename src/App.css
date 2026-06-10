@@ -249,6 +249,25 @@ input:disabled {
   padding: 0;
 }
 
+.done-groups {
+  display: flex;
+  flex-direction: column;
+}
+
+.week-header {
+  color: #737980;
+  font-size: 0.76rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  margin: 0;
+  padding: 10px 14px 4px;
+  text-transform: uppercase;
+}
+
+.done-week-group + .done-week-group {
+  border-top: 1px solid rgba(28, 28, 30, 0.08);
+}
+
 .editor-view {
   display: flex;
   flex-direction: column;
@@ -933,6 +952,14 @@ input:disabled {
   }
 
   .todo-row + .todo-row {
+    border-top-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .week-header {
+    color: #a0a7ae;
+  }
+
+  .done-week-group + .done-week-group {
     border-top-color: rgba(255, 255, 255, 0.08);
   }
 
