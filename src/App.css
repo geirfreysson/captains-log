@@ -610,6 +610,16 @@ input:disabled {
   background: rgba(232, 82, 72, 0.44);
 }
 
+.todo-row-completing {
+  animation: completing-fade 800ms ease both;
+}
+
+.todo-row-completing .todo-label-button {
+  color: #7b8187;
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
 .todo-row-done {
   animation-name: row-settle-done;
 }
@@ -740,6 +750,23 @@ input:disabled {
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes completing-fade {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(0.96) translateX(8px);
   }
 }
 

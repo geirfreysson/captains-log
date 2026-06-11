@@ -166,6 +166,7 @@ function TodoView() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [completingId, setCompletingId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [visibleList, setVisibleList] = useState<"open" | "done">("open");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -399,6 +400,13 @@ function TodoView() {
 
   async function setCompleted(id: string, completed: boolean) {
     setError("");
+
+    if (completed) {
+      setCompletingId(id);
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      setCompletingId(null);
+    }
+
     setPendingId(id);
 
     try {
@@ -517,16 +525,17 @@ function TodoView() {
         ? getTodoColorClassName(todo, settings.ageColorDays)
         : "";
     const isSelected = index === selectedIndex;
+    const isCompleting = completingId === todo.id;
 
     return (
       <li
-        className={`todo-row ${todo.completed ? "todo-row-done" : ""} ${ageClassName} ${isSelected ? "todo-row-selected" : ""}`}
+        className={`todo-row ${todo.completed ? "todo-row-done" : ""} ${ageClassName} ${isSelected ? "todo-row-selected" : ""} ${isCompleting ? "todo-row-completing" : ""}`}
         key={todo.id}
       >
         <input
-          checked={todo.completed}
+          checked={todo.completed || isCompleting}
           className="todo-checkbox"
-          disabled={pendingId === todo.id}
+          disabled={pendingId === todo.id || isCompleting}
           onChange={(event) =>
             setCompleted(todo.id, event.currentTarget.checked)
           }
