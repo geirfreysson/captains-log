@@ -13,6 +13,7 @@ type Todo = {
   createdAt: string;
   snoozedAt?: string | null;
   completedAt?: string | null;
+  hasNote?: boolean;
 };
 
 type FontSize = "small" | "medium" | "large";
@@ -175,8 +176,11 @@ function TodoView() {
   const [editingDueDate, setEditingDueDate] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
   const fromPopstateRef = useRef(false);
   const addInputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const openTodos = useMemo(
     () =>
@@ -211,7 +215,12 @@ function TodoView() {
         }),
     [todos],
   );
-  const visibleTodos = visibleList === "open" ? openTodos : doneTodos;
+  const baseTodos = visibleList === "open" ? openTodos : doneTodos;
+  const visibleTodos = isSearching && searchQuery.trim()
+    ? baseTodos.filter((todo) =>
+        todo.label.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : baseTodos;
   const visibleCount = visibleTodos.length;
   const counterLabel =
     visibleList === "open" ? "Show done tasks" : "Show open tasks";
@@ -293,7 +302,19 @@ function TodoView() {
 
   useEffect(() => {
     setSelectedIndex(-1);
+    setIsSearching(false);
+    setSearchQuery("");
   }, [visibleList]);
+
+  useEffect(() => {
+    if (isSearching) {
+      searchInputRef.current?.focus();
+    }
+  }, [isSearching]);
+
+  useEffect(() => {
+    setSelectedIndex(-1);
+  }, [searchQuery]);
 
   useEffect(() => {
     if (editingId) return;
@@ -301,14 +322,35 @@ function TodoView() {
     function handleKeyDown(event: KeyboardEvent) {
       const target = event.target as HTMLElement;
       const isAddInput = target === addInputRef.current;
+      const isSearchInput = target === searchInputRef.current;
       const isTyping =
         (target.tagName === "INPUT" ||
         target.tagName === "TEXTAREA" ||
-        target.isContentEditable) && !isAddInput;
+        target.isContentEditable) && !isAddInput && !isSearchInput;
+
+      if ((event.metaKey || event.ctrlKey) && event.key === "f") {
+        event.preventDefault();
+        setIsSearching((prev) => {
+          if (prev) {
+            setSearchQuery("");
+            setSelectedIndex(-1);
+            return false;
+          }
+          setSelectedIndex(-1);
+          return true;
+        });
+        return;
+      }
 
       if (event.key === "Escape") {
         event.preventDefault();
-        invoke("hide_window");
+        if (isSearching) {
+          setIsSearching(false);
+          setSearchQuery("");
+          setSelectedIndex(-1);
+        } else {
+          invoke("hide_window");
+        }
         return;
       }
 
@@ -317,6 +359,7 @@ function TodoView() {
       if (event.key === "ArrowDown") {
         event.preventDefault();
         if (isAddInput) addInputRef.current?.blur();
+        if (isSearchInput) searchInputRef.current?.blur();
         setSelectedIndex((prev) => {
           const max = visibleTodos.length - 1;
           return prev < max ? prev + 1 : max;
@@ -327,6 +370,7 @@ function TodoView() {
       if (event.key === "ArrowUp") {
         event.preventDefault();
         if (isAddInput) addInputRef.current?.blur();
+        if (isSearchInput) searchInputRef.current?.blur();
         setSelectedIndex((prev) => {
           if (prev <= 0) {
             addInputRef.current?.focus();
@@ -337,7 +381,7 @@ function TodoView() {
         return;
       }
 
-      if (isAddInput) return;
+      if (isAddInput || isSearchInput) return;
 
       if (event.key === "Enter" && selectedIndex >= 0) {
         event.preventDefault();
@@ -356,7 +400,7 @@ function TodoView() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [editingId, selectedIndex, visibleTodos]);
+  }, [editingId, selectedIndex, visibleTodos, isSearching]);
 
   function showError(value: unknown) {
     setError(value instanceof Error ? value.message : String(value));
@@ -450,8 +494,25 @@ function TodoView() {
     }
   }
 
+  async function createNoteFromTodo(todo: Todo) {
+    setError("");
+    try {
+      await invoke("create_note_from_todo", {
+        id: todo.id,
+        label: todo.label,
+        description: todo.description || "",
+      });
+      setMenuOpen(false);
+      await refreshData();
+    } catch (value) {
+      showError(value);
+    }
+  }
+
   function startEditing(todo: Todo) {
     setError("");
+    setIsSearching(false);
+    setSearchQuery("");
     setEditingId(todo.id);
     setEditingLabel(todo.label);
     setEditingDescription(todo.description ?? "");
@@ -588,6 +649,19 @@ function TodoView() {
           </button>
         </form>
 
+        {isSearching && (
+          <div className="search-bar">
+            <input
+              ref={searchInputRef}
+              aria-label="Filter tasks"
+              className="search-input"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.currentTarget.value)}
+              placeholder="Filter tasks..."
+            />
+          </div>
+        )}
+
         {error ? <p className="error-message">{error}</p> : null}
 
         <div className="task-panes">
@@ -652,6 +726,13 @@ function TodoView() {
                             </button>
                           ) : null}
                           <button
+                            disabled={pendingId === editingTodo.id}
+                            onClick={() => createNoteFromTodo(editingTodo)}
+                            type="button"
+                          >
+                            Create Note
+                          </button>
+                          <button
                             className="editor-dropdown-delete"
                             disabled={pendingId === editingTodo.id}
                             onClick={() => {
@@ -698,6 +779,10 @@ function TodoView() {
                     />
                   </label>
 
+                  {editingTodo.hasNote ? (
+                    <p className="note-badge">Linked to Notes</p>
+                  ) : null}
+
                   <label className="editor-description-field">
                     <span className="editor-meta-label">Description</span>
                     <textarea
@@ -737,7 +822,7 @@ function TodoView() {
                 </div>
               ) : visibleTodos.length === 0 ? (
                 <p className="empty-state">{emptyMessage}</p>
-              ) : visibleList === "done" ? (
+              ) : visibleList === "done" && !isSearching ? (
                 <div className="done-groups" key="done">
                   {(() => {
                     let flatIndex = 0;

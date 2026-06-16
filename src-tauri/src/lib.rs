@@ -30,6 +30,8 @@ struct Todo {
     snoozed_at: Option<String>,
     #[serde(default)]
     completed_at: Option<String>,
+    #[serde(default)]
+    has_note: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -368,6 +370,7 @@ fn create_todo(app: AppHandle, label: String) -> Result<Vec<Todo>, String> {
             created_at: now_timestamp(),
             snoozed_at: None,
             completed_at: None,
+            has_note: false,
         },
     );
     save_store(&app, &store)?;
@@ -455,6 +458,47 @@ fn delete_todo(app: AppHandle, id: String) -> Result<Vec<Todo>, String> {
     Ok(store.todos)
 }
 
+#[tauri::command]
+async fn create_note_from_todo(
+    app: AppHandle,
+    id: String,
+    label: String,
+    description: String,
+) -> Result<(), String> {
+    let escaped_name = label.replace('\\', "\\\\").replace('"', "\\\"");
+    let escaped_body = description
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\n', "<br>");
+
+    let script = format!(
+        r#"tell application "Notes"
+    activate
+    make new note at folder "Notes" with properties {{name:"{}", body:"{}"}}
+end tell"#,
+        escaped_name, escaped_body
+    );
+
+    let output = std::process::Command::new("osascript")
+        .arg("-e")
+        .arg(&script)
+        .output()
+        .map_err(|e| format!("Failed to run osascript: {e}"))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("AppleScript error: {stderr}"));
+    }
+
+    let mut store = load_store(&app)?;
+    if let Some(todo) = store.todos.iter_mut().find(|t| t.id == id) {
+        todo.has_note = true;
+        save_store(&app, &store)?;
+    }
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -477,7 +521,8 @@ pub fn run() {
             set_todo_completed,
             rename_todo,
             snooze_todo,
-            delete_todo
+            delete_todo,
+            create_note_from_todo
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
