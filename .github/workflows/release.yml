@@ -54,35 +54,63 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Tauri treats the mere *presence* of APPLE_CERTIFICATE/APPLE_SIGNING_IDENTITY
+      # as "sign this build" — even an empty string triggers a (failing) certificate
+      # import. So we detect whether real signing secrets exist and run one of two
+      # build steps: a signed+notarized one, or a plain unsigned one with no Apple
+      # env vars at all.
+      - name: Detect signing configuration
+        id: signing
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          if [ -n "$APPLE_CERTIFICATE" ] && [ -n "$APPLE_CERTIFICATE_PASSWORD" ] && \
+             [ -n "$APPLE_SIGNING_IDENTITY" ] && [ -n "$APPLE_API_KEY_BASE64" ] && \
+             [ -n "$APPLE_API_KEY" ] && [ -n "$APPLE_API_ISSUER" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Signing secrets present: build will be signed and notarized."
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "No signing secrets: build will be an unsigned DMG."
+          fi
+
       # The App Store Connect API key (.p8) has to exist on disk for notarization.
-      # Decode it from the base64 secret and expose its path only when present.
       - name: Write Apple API key
+        if: steps.signing.outputs.enabled == 'true'
         id: apple-api-key
         env:
           APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
         run: |
-          if [ -n "$APPLE_API_KEY_BASE64" ] && [ -n "$APPLE_API_KEY" ]; then
-            key_path="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY}.p8"
-            echo "$APPLE_API_KEY_BASE64" | base64 --decode > "$key_path"
-            echo "path=$key_path" >> "$GITHUB_OUTPUT"
-            echo "Apple API key written; notarization will run."
-          else
-            echo "No Apple API key secrets set; build will be unsigned/un-notarized."
-          fi
+          key_path="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY}.p8"
+          echo "$APPLE_API_KEY_BASE64" | base64 --decode > "$key_path"
+          echo "path=$key_path" >> "$GITHUB_OUTPUT"
 
-      - name: Build and upload macOS DMG
+      - name: Build and upload signed macOS DMG
+        if: steps.signing.outputs.enabled == 'true'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Code signing (empty -> Tauri produces an unsigned bundle)
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          # Notarization via App Store Connect API key (empty -> skipped)
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
           APPLE_API_KEY_PATH: ${{ steps.apple-api-key.outputs.path }}
+        with:
+          releaseId: ${{ github.event.release.id }}
+          args: --target universal-apple-darwin
+
+      - name: Build and upload unsigned macOS DMG
+        if: steps.signing.outputs.enabled != 'true'
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           # Attach artifacts to the Release that triggered this run.
           releaseId: ${{ github.event.release.id }}

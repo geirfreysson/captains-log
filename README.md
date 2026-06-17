@@ -2,6 +2,11 @@
 
 Tiny Todos is a macOS menu bar todo list app built with Tauri 2, React, TypeScript, and Rust.
 
+[![Download for macOS](https://img.shields.io/badge/Download%20for%20macOS-.dmg-blue?style=for-the-badge&logo=apple)](https://github.com/geirfreysson/captains-log/releases/latest)
+
+> The download is an **unsigned** build, so the first time you open it macOS will
+> warn you. Right-click the app → **Open** → **Open** to run it anyway.
+
 ## Features
 
 - Menu bar / tray popup for quick access
