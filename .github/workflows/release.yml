@@ -1,0 +1,90 @@
+name: Release macOS App
+
+# Builds a native macOS .dmg and attaches it to the GitHub Release.
+#
+# Trigger: publishing a Release in the GitHub UI (Releases -> Draft a new
+# release -> Publish). You can also run it manually from the Actions tab.
+#
+# Signing/notarization is OPTIONAL: if the Apple secrets below are present the
+# DMG is signed with your Developer ID and notarized by Apple; if they are
+# absent the build still succeeds and produces an UNSIGNED DMG (which users can
+# open via right-click -> Open). See README "Releasing the macOS app" for the
+# secret values, which are the same Apple Developer credentials used by the
+# northfox project.
+#
+#   Repo secret            | Same value as northfox's | What it is
+#   -----------------------+--------------------------+-----------------------------------
+#   APPLE_CERTIFICATE      | CSC_LINK                 | base64 of the Developer ID .p12
+#   APPLE_CERTIFICATE_PASSWORD | CSC_KEY_PASSWORD     | password for that .p12
+#   APPLE_SIGNING_IDENTITY | (new)                    | "Developer ID Application: NAME (TEAMID)"
+#   APPLE_API_KEY          | APPLE_API_KEY_ID         | App Store Connect key id
+#   APPLE_API_ISSUER       | APPLE_API_ISSUER         | App Store Connect issuer id
+#   APPLE_API_KEY_BASE64   | APPLE_API_KEY_BASE64     | base64 of the AuthKey_*.p8
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build-macos:
+    name: Build macOS DMG
+    runs-on: macos-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The App Store Connect API key (.p8) has to exist on disk for notarization.
+      # Decode it from the base64 secret and expose its path only when present.
+      - name: Write Apple API key
+        id: apple-api-key
+        env:
+          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+        run: |
+          if [ -n "$APPLE_API_KEY_BASE64" ] && [ -n "$APPLE_API_KEY" ]; then
+            key_path="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY}.p8"
+            echo "$APPLE_API_KEY_BASE64" | base64 --decode > "$key_path"
+            echo "path=$key_path" >> "$GITHUB_OUTPUT"
+            echo "Apple API key written; notarization will run."
+          else
+            echo "No Apple API key secrets set; build will be unsigned/un-notarized."
+          fi
+
+      - name: Build and upload macOS DMG
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Code signing (empty -> Tauri produces an unsigned bundle)
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          # Notarization via App Store Connect API key (empty -> skipped)
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_PATH: ${{ steps.apple-api-key.outputs.path }}
+        with:
+          # Attach artifacts to the Release that triggered this run.
+          releaseId: ${{ github.event.release.id }}
+          # One universal binary that runs on both Apple Silicon and Intel.
+          args: --target universal-apple-darwin
