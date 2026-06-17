@@ -30,6 +30,9 @@ jobs:
   build-macos:
     name: Build macOS DMG
     runs-on: macos-latest
+    permissions:
+      # Required for tauri-action to upload the .dmg to the release.
+      contents: write
 
     steps:
       - name: Check out source
